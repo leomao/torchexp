@@ -63,7 +63,7 @@ def mask_seqs(seqs, lens):
     Returns:
         masked_seqs: `seqs` masked with length `lens`
     '''
-    mask = th.ones_like(seqs).scatter_(1, l.unsqueeze(-1), 0).cumprod(-1)
+    mask = th.ones_like(seqs).scatter_(1, lens.unsqueeze(-1), 0).cumprod(-1)
     masked_seqs = mask * seqs
     return masked_seqs
 
