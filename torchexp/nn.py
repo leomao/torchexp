@@ -146,7 +146,8 @@ def scaled_dot_product_attention(q, k, v, temperature=None, mask=None,
 class MultiHeadAttention(nn.Module):
     ''' Multi-head Attention '''
 
-    def __init__(self, input_sizes, out_size, h, sk, sv=None, p_dropout=None):
+    def __init__(self, input_sizes, out_size, h, sk, sv=None, p_dropout=None,
+                 transform_bias=False):
         '''
         Args:
             input_sizes (int or tuple): the sizes of queries, keys, values
@@ -169,9 +170,9 @@ class MultiHeadAttention(nn.Module):
         else:
             raise TypeError('the `input_sizes` should be int or 3-tuple of int')
 
-        self.ws_q = nn.Linear(input_sq, h * sk)
-        self.ws_k = nn.Linear(input_sk, h * sk)
-        self.ws_v = nn.Linear(input_sv, h * sv)
+        self.ws_q = nn.Linear(input_sq, h * sk, bias=transform_bias)
+        self.ws_k = nn.Linear(input_sk, h * sk, bias=transform_bias)
+        self.ws_v = nn.Linear(input_sv, h * sv, bias=transform_bias)
         self.w_out = nn.Linear(h * sv, out_size)
 
         self.dropout = None
@@ -215,8 +216,8 @@ class MultiHeadAttention(nn.Module):
 
 
 class SelfAttention(MultiHeadAttention):
-    def __init__(self, input_size, out_size, h, sk, sv=None, p_dropout=None):
-        super().__init__(input_size, out_size, h, sk, sv, p_dropout)
+    def __init__(self, input_size, out_size, h, sk, **kwargs):
+        super().__init__(input_size, out_size, h, sk, **kwargs)
 
     def forward(self, x, mask=None):
         super().forward(x, x, x, mask=mask)
