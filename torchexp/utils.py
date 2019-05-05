@@ -16,9 +16,9 @@ def _apply_all(*val, fn):
         return fn(val)
 
 
-@gin.configurable(whitelist=['device'])
+@gin.configurable(whitelist=['device'], module='torchexp')
 def CC(args, device):
-    _apply_all(args, fn=lambda x: x.to(device))
+    return _apply_all(args, fn=lambda x: x.to(device))
 
 
 def np2tor(*args, requires_grad=False):

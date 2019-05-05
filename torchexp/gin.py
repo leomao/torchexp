@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 import gin
 
 
-gin.external_configurable(DataLoader, 'torch.utils.data')
+gin.external_configurable(DataLoader, module='torch.utils.data')
 
 
 # Losses
