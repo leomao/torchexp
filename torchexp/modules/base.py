@@ -1,5 +1,5 @@
 import collections.abc
-import numpy as np
+import math
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -7,26 +7,63 @@ import torch.nn.functional as F
 import torchexp as te
 
 
-def MLPStack(input_size, specs):
+class NormSpec:
+    def __init__(self, norm_type, *args, **kwargs):
+        self.norm_type = norm_type
+        self.args = args
+        self.kws = kwargs
+
+    def instantiate(self, in_features, nd=1):
+        if self.norm_type == 'batch':
+            if nd == 1:
+                return nn.BatchNorm1d(in_features, *self.args, **self.kws)
+            elif nd == 2:
+                return nn.BatchNorm2d(in_features, *self.args, **self.kws)
+            elif nd == 3:
+                return nn.BatchNorm3d(in_features, *self.args, **self.kws)
+        elif self.norm_type == 'instance':
+            if nd == 1:
+                return nn.InstanceNorm1d(in_features, *self.args, **self.kws)
+            elif nd == 2:
+                return nn.InstanceNorm2d(in_features, *self.args, **self.kws)
+            elif nd == 3:
+                return nn.InstanceNorm3d(in_features, *self.args, **self.kws)
+        elif self.norm_type == 'group':
+            return nn.GroupNorm(self.args[0], in_features,
+                                *self.args[1:], **self.kws)
+        else:
+            raise ValueError(f'The norm type {self.norm_type} is not supported.')
+
+
+def MLPStack(input_size, specs, bias_all=True):
     layers = []
     for spec in specs:
         if isinstance(spec, nn.Module):
-            # assume `spec` will not change the number of features
+            # `spec` must not change the number of features
             layers.append(spec)
         else:
-            layers.append(nn.Linear(input_size, spec))
+            if isinstance(spec, int):
+                next_size = spec
+                bias = bias_all
+            elif isinstance(spec, tuple) and len(spec) == 2:
+                next_size, bias = spec
+            else:
+                raise ValueError(f'The spec `{spec}` is not acceptable'
+                                 ' as a layer in MLPStack')
+            layers.append(nn.Linear(input_size, spec, bias))
             input_size = spec
     return nn.Sequential(*layers)
 
 
 class ConvSpec:
-    def __init__(self, num_channels, kernel_size, s=1, p=0, d=1, g=1, bn=True):
+    def __init__(self, num_channels, kernel_size,
+                 s=1, p=0, d=1, g=1, bias=True, **kwargs):
         '''
             s => stride
             p => padding
             d => dilation
             g => groups
-            bn => batch_norm
+            bias => bias
         '''
         self.num_channels = num_channels
         self.kernel_size = kernel_size
@@ -34,25 +71,39 @@ class ConvSpec:
         self.padding = p
         self.dilation = d
         self.groups = g
-        self.batch_norm = bn
+        self.bias = bias
+        for k, v in kwargs.items():
+            for name in self.__dict__:
+                if name.startwidth(k):
+                    self.__setattr__(name, v)
+                    break
 
     def conv_kwargs(self):
         return {
-            'out_channels': self.n_c,
+            'out_channels': self.num_channels,
             'kernel_size': self.kernel_size,
             'stride': self.stride,
             'padding': self.padding,
             'dilation': self.dilation,
             'groups': self.groups,
+            'bias': self.bias,
         }
 
 
-def ConvStack(in_channels, specs):
+def _ConvStack(in_channels, specs, nd):
+    if nd == 1:
+        _Conv = nn.Conv1d
+    elif nd == 2:
+        _Conv = nn.Conv2d
+    elif nd == 3:
+        _Conv = nn.Conv3d
+    else:
+        raise ValueError('`nd` should be 1, 2 or 3')
     prev_c = in_channels
     layers = []
     for spec in specs:
         if isinstance(spec, nn.Module):
-            # assume `spec` will not change in_channel
+            # `spec` must not change in_channel
             layers.append(spec)
         else:
             if isinstance(spec, collections.abc.Sequence):
@@ -62,36 +113,46 @@ def ConvStack(in_channels, specs):
 
             if not isinstance(spec, ConvSpec):
                 raise TypeError(f'type `{type(spec)}` is not acceptable'
-                                ' as a layer in ConvStack')
+                                f' as a layer in Conv{nd}dStack')
 
-            layers.append(nn.Conv2d(prev_c, **spec.conv_kwargs()))
-            if spec.batch_norm:
-                layers.append(nn.BatchNorm2d(spec.num_channels))
+            layers.append(_Conv(prev_c, **spec.conv_kwargs()))
             prev_c = spec.num_channels
     return nn.Sequential(*layers)
 
 
+def Conv1dStack(in_channels, specs):
+    return _ConvStack(in_channels, specs, 1)
+
+
+def Conv2dStack(in_channels, specs):
+    return _ConvStack(in_channels, specs, 2)
+
+
+def Conv3dStack(in_channels, specs):
+    return _ConvStack(in_channels, specs, 3)
+
+
 class Attention(nn.Module):
-    def __init__(self, input_size, feat_size, atten_size):
+    def __init__(self, input_size, feat_size, attn_size):
         super(Attention, self).__init__()
-        self.w_feat = nn.Linear(feat_size, atten_size, bias=False)
-        self.w_input = nn.Linear(inp_size, atten_size, bias=True)
-        self.v_atten = nn.Parameter(th.empty(atten_size))
+        self.w_feat = nn.Linear(feat_size, attn_size, bias=False)
+        self.w_input = nn.Linear(input_size, attn_size, bias=True)
+        self.v_attn = nn.Parameter(th.empty(attn_size))
         self.reset_parameters()
 
     def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.atten_v.size(0))
-        self.atten_v.data.normal_(-stdv, stdv)
+        stdv = 1. / math.sqrt(self.attn_v.size(0))
+        self.attn_v.data.normal_(-stdv, stdv)
 
     def forward(self, z, features):
         # features:      B * feat_size * N
-        # permuted(tf):  B * N * feat_size -> B * N * atten_size
-        # self.w_inp(z): B * atten_size
+        # permuted(tf):  B * N * feat_size -> B * N * attn_size
+        # self.w_inp(z): B * attn_size
         tf = features.permute(0, 2, 1)
-        att = F.relu(self.w_feat(tf) + self.w_inp(z).unsqueeze(1))
-        # att:   B * N * atten_size
+        attn = F.relu(self.w_feat(tf) + self.w_inp(z).unsqueeze(1))
+        # att:   B * N * attn_size
         # alpha: B * N
-        alpha = att.matmul(self.v_atten).softmax(-1)
+        alpha = attn.matmul(self.v_attn).softmax(-1)
         # batch matrix-vector product
         # B * feat_size * N <dot> B * N * 1
         # ctx: B * feat_size
@@ -100,15 +161,15 @@ class Attention(nn.Module):
 
 
 class CosineAttention(nn.Module):
-    def __init__(self, inp_size, feat_size, atten_size):
-        super(Attention, self).__init__()
-        self.w_feat = nn.Linear(feat_size, atten_size)
-        self.w_inp = np.Linear(inp_size, atten_size)
+    def __init__(self, input_size, feat_size, attn_size):
+        super().__init__()
+        self.w_feat = nn.Linear(feat_size, attn_size)
+        self.w_inp = nn.Linear(input_size, attn_size)
 
     def forward(self, z, features):
         # features:      B * feat_size * N
-        # permuted(tf):  B * N * feat_size -> B * N * atten_size
-        # self.w_inp(z): B * atten_size
+        # permuted(tf):  B * N * feat_size -> B * N * attn_size
+        # self.w_inp(z): B * attn_size
         tf = features.permute(0, 2, 1)
         sim = F.cosine_similarity(
             self.w_feat(tf),
@@ -120,8 +181,11 @@ class CosineAttention(nn.Module):
         # batch matrix-vector product
         # B * feat_size * N <dot> B * N * 1
         # ctx: B * feat_size
-        ctx = tm.bmv(features, alpha)
+        ctx = te.bmv(features, alpha)
         return ctx, alpha
+
+
+# deprecated functions, for reference
 
 
 def scaled_dot_product_attention(q, k, v, temperature=None, mask=None,
@@ -221,3 +285,15 @@ class SelfAttention(MultiHeadAttention):
 
     def forward(self, x, mask=None):
         super().forward(x, x, x, mask=mask)
+
+
+__all__ = [
+    'NormSpec',
+    'MLPStack',
+    'ConvSpec',
+    'Conv1dStack',
+    'Conv2dStack',
+    'Conv3dStack',
+    'Attention',
+    'CosineAttention',
+]

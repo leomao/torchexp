@@ -1,6 +1,7 @@
 import collections.abc
 import numpy as np
 import torch as th
+import gin
 
 
 def _apply_all(*val, fn):
@@ -8,11 +9,16 @@ def _apply_all(*val, fn):
         val = val[0]
 
     if isinstance(val, collections.abc.Sequence):
-        return [ _apply_all(x, fn=fn) for x in val ]
+        return [_apply_all(x, fn=fn) for x in val]
     elif isinstance(val, collections.abc.Mapping):
-        return { k: _apply_all(x, fn=fn) for k, x in val.items() }
+        return {k: _apply_all(x, fn=fn) for k, x in val.items()}
     else:
         return fn(val)
+
+
+@gin.configurable(whitelist=['device'])
+def CC(args, device):
+    _apply_all(args, fn=lambda x: x.to(device))
 
 
 def np2tor(*args, requires_grad=False):
@@ -63,13 +69,13 @@ def mask_seqs(seqs, lens):
     Returns:
         masked_seqs: `seqs` masked with length `lens`
     '''
-    mask = th.ones_like(seqs).scatter_(1, lens.unsqueeze(-1), 0).cumprod(-1)
+    mask = th.ones_like(seqs).scatter_(-1, lens.unsqueeze(-1), 0).cumprod(-1)
     masked_seqs = mask * seqs
     return masked_seqs
 
 
 # Computation shortcut
-def bmv(bm, bv) -> th.Tensor:
+def bmv(bm: th.Tensor, bv: th.Tensor) -> th.Tensor:
     '''
     batch matrix-vector product
     Args:

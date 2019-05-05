@@ -1,17 +1,16 @@
 # Useful classes
 class RunningAverage:
     def __init__(self, decay_rate, decay_step=1):
-        self.r = decay_rate**(1/decay_step)
-        self.r_n = 1.  # = r^n
+        self.r = decay_rate ** (1. / decay_step)
         self.z = 0.    # = 1 + r^2 + ... + r^{n-1}
         self.avg = 0.  # = 1/z sum_{i=1}^n r^{n-i} v_i
 
-    def add(self, v, width=1):
-        new_z = self.z + self.r_n * width
-        self.r_n *= self.r
-        p = self.r * self.z / new_z
-        self.avg = p * self.avg + v * width / new_z
-        self.z = new_z
+    def add(self, value, width=1):
+        r_n = self.r ** width
+        prev = self.z * r_n
+        part = (1 - r_n) / (1 - self.r)
+        self.z = prev + part
+        self.avg = (self.avg * prev + value * part) / self.z
 
     def __float__(self):
         return self.avg
