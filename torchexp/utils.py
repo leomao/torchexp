@@ -17,7 +17,7 @@ def _apply_all(*val, fn):
 
 
 @gin.configurable(whitelist=['device'], module='torchexp')
-def CC(args, device):
+def CC(args, device='cpu'):
     return _apply_all(args, fn=lambda x: x.to(device))
 
 
