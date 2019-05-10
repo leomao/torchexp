@@ -50,6 +50,19 @@ gin.external_configurable(nn.Tanhshrink, module='th.nn')
 gin.external_configurable(nn.Threshold, module='th.nn')
 
 
+# norm
+gin.external_configurable(nn.BatchNorm1d, module='th.nn')
+gin.external_configurable(nn.BatchNorm2d, module='th.nn')
+gin.external_configurable(nn.BatchNorm3d, module='th.nn')
+gin.external_configurable(nn.GroupNorm, module='th.nn')
+gin.external_configurable(nn.SyncBatchNorm, module='th.nn')
+gin.external_configurable(nn.InstanceNorm1d, module='th.nn')
+gin.external_configurable(nn.InstanceNorm2d, module='th.nn')
+gin.external_configurable(nn.InstanceNorm3d, module='th.nn')
+gin.external_configurable(nn.LayerNorm, module='th.nn')
+gin.external_configurable(nn.LocalResponseNorm, module='th.nn')
+
+
 # Optimizers
 gin.external_configurable(optim.Adadelta, module='th.optim')
 gin.external_configurable(optim.Adagrad, module='th.optim')
