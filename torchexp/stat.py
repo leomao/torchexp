@@ -6,9 +6,13 @@ class RunningAverage:
         self.avg = 0.  # = 1/z sum_{i=1}^n r^{n-i} v_i
 
     def add(self, value, width=1):
-        r_n = self.r ** width
-        prev = self.z * r_n
-        part = (1 - r_n) / (1 - self.r)
+        if self.r < 1:
+            r_n = self.r ** width
+            prev = self.z * r_n
+            part = (1 - r_n) / (1 - self.r)
+        else:
+            prev = self.z
+            part = width
         self.z = prev + part
         self.avg = (self.avg * prev + value * part) / self.z
 
