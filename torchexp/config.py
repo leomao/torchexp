@@ -7,13 +7,6 @@ import torch as th
 import gin
 
 
-def _read_yaml_macros(yaml_path):
-    yaml = YAML()
-    with open(yaml_path, 'r') as f:
-        data = yaml.load(f)
-    gin.parse_config([f'{k} = {repr(v)}' for k, v in data.items()])
-
-
 def _transform(value):
     try:
         return int(value)
@@ -23,10 +16,17 @@ def _transform(value):
         return float(value)
     except ValueError:
         pass
-    if value.startwith('@'):
+    if value.startwith('@') or value.startwith('%'):
         return value
 
     return repr(value)
+
+
+def _read_yaml_macros(yaml_path):
+    yaml = YAML()
+    with open(yaml_path, 'r') as f:
+        data = yaml.load(f)
+    gin.parse_config([f'{k} = {_transform(v)}' for k, v in data.items()])
 
 
 @gin.configurable
