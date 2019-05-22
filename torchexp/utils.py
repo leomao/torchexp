@@ -84,6 +84,10 @@ def mask_seqs(seqs, lens):
     return masked_seqs
 
 
+def masked_mean(x, mask, dim=()):
+    return (x * mask).sum(dim=dim) / mask.sum(dim=dim)
+
+
 # Computation shortcut
 def bmv(bm: th.Tensor, bv: th.Tensor) -> th.Tensor:
     '''

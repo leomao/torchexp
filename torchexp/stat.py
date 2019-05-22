@@ -1,7 +1,7 @@
 # Useful classes
 class RunningAverage:
-    def __init__(self, decay_rate, decay_step=1):
-        self.r = decay_rate ** (1. / decay_step)
+    def __init__(self, decay_rate=1.):
+        self.r = decay_rate
         self.z = 0.    # = 1 + r^2 + ... + r^{n-1}
         self.avg = 0.  # = 1/z sum_{i=1}^n r^{n-i} v_i
 
@@ -24,6 +24,18 @@ class RunningAverage:
 
     def __format__(self, spec):
         return format(self.avg, spec)
+
+
+class RunningAvgDict(dict):
+    def __init__(self, decay_rate=1.):
+        super().__init__()
+        self.decay_rate = decay_rate
+
+    def add(self, d, width=1):
+        for k, v in d.items():
+            if k not in self:
+                self[k] = RunningAverage(self.decay_rate)
+            self[k].add(v, width=width)
 
 
 class F1Score:
