@@ -32,9 +32,9 @@ def _read_yaml_macros(yaml_path):
 @gin.configurable
 def manual_seed(seed=None):
     if seed is None:
-        seed = th.initial_seed() % (1 << 63)
+        seed = th.initial_seed() & ((1 << 63) - 1)
         gin.bind_parameter('%seed', seed)
-        # excute the function again to trace the modification of config
+        # execute the function again to record the modification of gin config
         manual_seed()
         return
     random.seed(seed)
@@ -44,7 +44,7 @@ def manual_seed(seed=None):
 
 
 def parse_args(args=None):
-    gin.bind_parameter('torchexp.config.manual_seed.seed', '%seed')
+    gin.parse_config('torchexp.config.manual_seed.seed = %seed')
     gin.bind_parameter('%seed', None)
 
     if args is None:

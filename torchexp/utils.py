@@ -16,8 +16,9 @@ def _apply_all(*val, fn):
         return fn(val)
 
 
+default_device = 'cuda' if th.cuda.is_available() else 'cpu'
 @gin.configurable(whitelist=['device'], module='torchexp')
-def CC(args, device='cpu'):
+def CC(args, device=default_device):
     return _apply_all(args, fn=lambda x: x.to(device))
 
 
