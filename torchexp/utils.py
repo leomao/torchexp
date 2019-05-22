@@ -61,6 +61,16 @@ def one_hot(index, n, dtype=th.float32) -> th.Tensor:
     return onehot
 
 
+def length_to_mask(lens, max_len=None, dtype=None):
+    if max_len is None:
+        max_len = lens.max().item()
+    seq = th.arange(max_len, device=lens.device, dtype=lens.dtype)
+    mask = seq.expand(*lens.size(), -1) < lens.unsqueeze(-1)
+    if dtype is not None:
+        mask = mask.to(dtype)
+    return mask
+
+
 def mask_seqs(seqs, lens):
     '''
     Args:
@@ -69,7 +79,7 @@ def mask_seqs(seqs, lens):
     Returns:
         masked_seqs: `seqs` masked with length `lens`
     '''
-    mask = th.ones_like(seqs).scatter_(-1, lens.unsqueeze(-1), 0).cumprod(-1)
+    mask = length_to_mask(lens, max_len=seqs.size(-1), dtype=th.float32)
     masked_seqs = mask * seqs
     return masked_seqs
 
