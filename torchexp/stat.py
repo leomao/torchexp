@@ -6,15 +6,17 @@ class RunningAverage:
         self.avg = 0.  # = 1/z sum_{i=1}^n r^{n-i} v_i
 
     def add(self, value, width=1):
+        part = width
+        prev = self.z
+        prev_sum = self.avg * self.z
         if self.r < 1:
             r_n = self.r ** width
-            prev = self.z * r_n
             part = (1 - r_n) / (1 - self.r)
-        else:
-            prev = self.z
-            part = width
+            prev *= r_n
+            prev_sum *= r_n
+
         self.z = prev + part
-        self.avg = (self.avg * prev + value * part) / self.z
+        self.avg = (prev_sum + value * part) / self.z
 
     def __float__(self):
         return self.avg
