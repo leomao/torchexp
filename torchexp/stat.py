@@ -21,8 +21,8 @@ class RunningAverage:
     def __float__(self):
         return self.avg
 
-    def __str__(self):
-        return f'{self.avg:.6f}'
+    def __repr__(self):
+        return f'RunningAvg({self.avg:.6f})'
 
     def __format__(self, spec):
         return format(self.avg, spec)
