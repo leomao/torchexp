@@ -1,24 +1,20 @@
 import os.path
 import sys
 import random
+from ast import literal_eval
 from ruamel.yaml import YAML
 import numpy as np
 import torch as th
 import gin
 
 
-def _transform(value):
-    try:
-        return int(value)
-    except ValueError:
-        pass
-    try:
-        return float(value)
-    except ValueError:
-        pass
-    if value.startwith('@') or value.startwith('%'):
-        return value
+def check_gin_special(s):
+    return s.startswith('@') or s.startswith('%')
 
+
+def _transform(value):
+    if isinstance(value, str) and check_gin_special(value):
+        return value
     return repr(value)
 
 
@@ -62,7 +58,12 @@ def parse_args(args=None):
         elif key == '--gin':
             gin.parse_config_file(value)
         else:
-            value = _transform(value)
+            if not check_gin_special(value):
+                try:
+                    value = literal_eval(value)
+                except ValueError:
+                    pass
+                value = repr(value)
             gin.parse_config(f'{key} = {value}')
 
     manual_seed()
