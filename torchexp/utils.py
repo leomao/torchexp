@@ -102,14 +102,14 @@ def bmv(bm: th.Tensor, bv: th.Tensor) -> th.Tensor:
     return th.bmm(bm, bv.unsqueeze(-1)).squeeze()
 
 
-def pairwise_l2_distance(x: th.Tensor, y: th.Tensor) -> th.Tensor:
+def pairwise_squared_distance(x: th.Tensor, y: th.Tensor) -> th.Tensor:
     '''
-    pairwise l2 distances between two sets of vectors
+    pairwise squared (L2) distances between two sets of vectors
     Args:
         x: Tensor(N, C)
         y: Tensor(M, C)
     '''
-    y = y.t()
-    dist = x.pow(2).sum(1, keepdim=True) + y.pow(2).sum(1, keepdim=True)
-    dist.addmm_(1, -2, x, y)
+    yt = y.t()
+    dist = x.pow(2).sum(1, keepdim=True) + yt.pow(2).sum(0, keepdim=True)
+    dist.addmm_(1, -2, x, yt)
     return dist
