@@ -61,7 +61,7 @@ def parse_args(args=None):
             if not check_gin_special(value):
                 try:
                     value = literal_eval(value)
-                except ValueError:
+                except (ValueError, SyntaxError):
                     pass
                 value = repr(value)
             gin.parse_config(f'{key} = {value}')
